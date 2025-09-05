@@ -4,7 +4,7 @@
 # import all punctuation characters 
 import string
 # Function to check if a string is palindrome
-def palindrome(str)
+def palindrome(str) :
 
 # String conversion to lowercase
     str = str.lower()
@@ -20,13 +20,13 @@ def palindrome(str)
 print(palindrome("racecar"))             
 print(palindrome("Nurses Run"))          
 print(palindrome("Sit on a potato pan, Otis."))  
-print(palindrome("Madam")
+print(palindrome("Madam"))
 
 
  #EXERCISE 2
  #Method 1
 
-  def parentheses(sequence):
+  def parentheses_method1(sequence):
     # To keep track of open parentheses
     count = 0
 
@@ -51,7 +51,7 @@ print(parentheses("((((((())"))
 print(parentheses("()))"))
 
   #Method 2
-def parentheses(sequence):
+def parentheses_mthod2(sequence):
     # declare empty list
     list = []
     for char in sequence:
