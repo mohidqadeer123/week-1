@@ -6,10 +6,10 @@ import string
 # Function to check if a string is palindrome
 def palindrome(str) :
 
-# String conversion to lowercase
+    # String conversion to lowercase
     str = str.lower()
 
- # Removes spaces/punctuation
+    # Removes spaces/punctuation
     for char in string.punctuation + " ":       #string.punctuation contains all common punctuation characters
         str = str.replace(char, "")
     
@@ -26,7 +26,8 @@ print(palindrome("Madam"))
  #EXERCISE 2
  #Method 1
 
-  def parentheses_method1(sequence):
+def parentheses_method1(sequence):
+   
     # To keep track of open parentheses
     count = 0
 
