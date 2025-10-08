@@ -4,7 +4,7 @@ import pandas as pd
 
 st.title("Music Genre and Mental Health Analysis")
 
-file_path = r"D:\Data_Science_Survey.csv"
+file_path = r"data/mxmh_survey_results.csv"
 df = pd.read_csv(file_path)
 
 cols = ["Fav genre", "Anxiety", "Depression", "Insomnia"]
