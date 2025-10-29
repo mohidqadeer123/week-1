@@ -50,81 +50,96 @@ import plotly.express as px
 file_path = r"https://raw.githubusercontent.com/mohidqadeer123/week-1/refs/heads/main/Data_Science_Survey.csv"
 df = pd.read_csv(file_path)
 
-st.title("🎧 Mental Health Patterns by Age and Listening Habits")
-
-st.markdown("""
-Visualize how **Age** and **Listening Hours per Day** relate to **mental health conditions**  
-(such as Anxiety, Depression, Insomnia, or OCD).
-""")
-
 # ---------------------------
-# Data Cleaning
+# Clean and Prepare
 # ---------------------------
 df = df.rename(columns=lambda x: x.strip())
 
-# Convert numeric columns safely
-df["Age"] = pd.to_numeric(df["Age"], errors="coerce")
-df["Hours per day"] = pd.to_numeric(df["Hours per day"], errors="coerce")
-for col in ["Anxiety", "Depression", "Insomnia", "OCD"]:
+# Convert numeric columns
+for col in ["Age", "Hours per day", "Anxiety", "Depression", "Insomnia", "OCD"]:
     df[col] = pd.to_numeric(df[col], errors="coerce")
 
-df = df.dropna(subset=["Age", "Hours per day"])
+df = df.dropna(subset=["Age", "Hours per day", "Fav genre"])
 
-# ---------------------------
-# Sidebar Controls
-# ---------------------------
-st.sidebar.header("🎛️ Controls")
-
-genre = st.sidebar.selectbox(
-    "Select Favorite Genre",
-    options=sorted(df["Fav genre"].dropna().unique())
-)
-
-metric = st.sidebar.selectbox(
-    "Select Mental Health Condition",
-    ["Anxiety", "Depression", "Insomnia", "OCD"]
-)
-
-# Bin Age and Hours for heatmap
+# Define bins for Age
 age_bins = [10, 20, 30, 40, 50, 60, 70]
-hour_bins = [0, 1, 2, 3, 4, 5, 6]
+df["Age_group"] = pd.cut(df["Age"], bins=age_bins, labels=[f"{age_bins[i]}–{age_bins[i+1]}" for i in range(len(age_bins)-1)], right=False)
 
-df_filtered = df[df["Fav genre"] == genre].copy()
-df_filtered["Age_bin"] = pd.cut(df_filtered["Age"], bins=age_bins, right=False)
-df_filtered["Hours_bin"] = pd.cut(df_filtered["Hours per day"], bins=hour_bins, right=False)
+# ---------------------------
+# Streamlit Layout
+# ---------------------------
+st.title("🎧 3D Heatmap: Music Habits vs Mental Health")
 
-# Group and calculate average condition score
+st.markdown("""
+Explore how **Age**, **Listening Hours**, and **Music Genre** relate to  
+mental health conditions such as *Anxiety*, *Depression*, *Insomnia*, and *OCD*.
+""")
+
+# --- Controls ---
+st.sidebar.header("🎛️ Filters")
+
+# Age group dropdown
+age_group = st.sidebar.selectbox("Select Age Group", options=df["Age_group"].unique())
+
+# Hours slider
+hours_range = st.sidebar.slider("Select Listening Hours per Day", 0.0, 6.0, (1.0, 4.0), step=0.5)
+
+# Condition dropdown
+condition = st.sidebar.selectbox("Select Condition", ["Anxiety", "Depression", "Insomnia", "OCD"])
+
+# Genre multi-select
+genres = st.sidebar.multiselect(
+    "Select Favorite Genres",
+    options=sorted(df["Fav genre"].dropna().unique()),
+    default=["Pop", "Rock", "Hip hop"]
+)
+
+# ---------------------------
+# Filter Data
+# ---------------------------
+filtered = df[
+    (df["Age_group"] == age_group)
+    & (df["Hours per day"].between(hours_range[0], hours_range[1]))
+    & (df["Fav genre"].isin(genres))
+]
+
+if filtered.empty:
+    st.warning("⚠️ No data matches the selected filters.")
+    st.stop()
+
+# ---------------------------
+# Aggregate by Genre and Hours
+# ---------------------------
 grouped = (
-    df_filtered.groupby(["Age_bin", "Hours_bin"])[metric]
+    filtered.groupby(["Fav genre", "Hours per day"])[condition]
     .mean()
     .reset_index()
 )
 
-# Convert bins to readable string ranges
-grouped["Age_bin"] = grouped["Age_bin"].astype(str)
-grouped["Hours_bin"] = grouped["Hours_bin"].astype(str)
+# ---------------------------
+# 3D Heatmap (Surface Plot)
+# ---------------------------
+fig = px.scatter_3d(
+    grouped,
+    x="Fav genre",
+    y="Hours per day",
+    z=condition,
+    color=condition,
+    color_continuous_scale="RdYlBu_r",
+    size_max=15,
+    title=f"3D Visualization of {condition} Levels — Age Group {age_group}"
+)
 
-# ---------------------------
-# Heatmap Plot
-# ---------------------------
-if not grouped.empty:
-    fig = px.density_heatmap(
-        grouped,
-        x="Hours_bin",
-        y="Age_bin",
-        z=metric,
-        color_continuous_scale="RdYlBu_r",
-        title=f"{metric} Levels by Age and Listening Hours ({genre})"
-    )
-    fig.update_layout(
-        height=600,
-        xaxis_title="Listening Hours (binned)",
-        yaxis_title="Age (binned)",
-        coloraxis_colorbar_title=f"{metric} Level"
-    )
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.warning("⚠️ No data available for the selected genre or bins.")
+fig.update_layout(
+    scene=dict(
+        xaxis_title="Genre",
+        yaxis_title="Listening Hours per Day",
+        zaxis_title=f"{condition} Level"
+    ),
+    height=700
+)
+
+st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------
 # Research Question
@@ -132,6 +147,6 @@ else:
 st.markdown("---")
 st.subheader("🧠 Research Question")
 st.markdown(f"""
-**How does the number of hours spent listening to {genre} music relate  
-to {metric.lower()} levels across different age groups?**
+**How does the number of listening hours and music genre preference  
+relate to {condition.lower()} levels for individuals aged {age_group}?**
 """)
