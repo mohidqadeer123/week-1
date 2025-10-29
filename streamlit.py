@@ -43,25 +43,43 @@ st.plotly_chart(fig)
 st.title("🎧 Listening & Mood Patterns by Age and Listening Time")
 
 st.markdown("""
-Explore how **listening time and music genres** relate to **mental health scores**,  
-grouped by **age categories**.
+Explore how **listening time** and **favorite genres** relate to **mental health** across **different age groups**.
 """)
 
-# Expected columns check
-expected_cols = ["Age", "Genre", "Hours_per_day", "Mental_health_score"]
-missing_cols = [col for col in expected_cols if col not in df.columns]
+# ---------------------------
+# Data Cleaning
+# ---------------------------
+# Keep only necessary columns
+columns_needed = [
+    "Age",
+    "Primary streaming service",
+    "Hours per day",
+    "Fav genre",
+    "Anxiety",
+    "Depression",
+    "Insomnia",
+    "OCD"
+]
 
-if missing_cols:
-    st.error(f"❌ Missing expected columns in dataset: {', '.join(missing_cols)}")
-    st.stop()
+df = df[columns_needed].copy()
 
-# Convert types
+# Convert numeric columns
 df["Age"] = pd.to_numeric(df["Age"], errors="coerce")
-df["Hours_per_day"] = pd.to_numeric(df["Hours_per_day"], errors="coerce")
-df["Mental_health_score"] = pd.to_numeric(df["Mental_health_score"], errors="coerce")
-df = df.dropna(subset=["Age", "Hours_per_day", "Genre", "Mental_health_score"])
+df["Hours per day"] = pd.to_numeric(df["Hours per day"], errors="coerce")
+df["Anxiety"] = pd.to_numeric(df["Anxiety"], errors="coerce")
+df["Depression"] = pd.to_numeric(df["Depression"], errors="coerce")
+df["Insomnia"] = pd.to_numeric(df["Insomnia"], errors="coerce")
+df["OCD"] = pd.to_numeric(df["OCD"], errors="coerce")
 
-# Define Age Groups
+# Drop rows with missing key data
+df = df.dropna(subset=["Age", "Hours per day", "Fav genre"])
+
+# Compute average mental health score
+df["Mental_Health_Score"] = df[["Anxiety", "Depression", "Insomnia", "OCD"]].mean(axis=1)
+
+# ---------------------------
+# Age Group Binning
+# ---------------------------
 def categorize_age(age):
     if age < 20:
         return "Teen (13–19)"
@@ -76,67 +94,74 @@ def categorize_age(age):
 
 df["Age_Group"] = df["Age"].apply(categorize_age)
 
+# ---------------------------
 # Sidebar filters
-st.sidebar.header("Filters")
+# ---------------------------
+st.sidebar.header("🔧 Filters")
+
 # Age group dropdown
 age_group = st.sidebar.selectbox(
     "Select Age Group",
-    options=df["Age_Group"].unique()
+    options=sorted(df["Age_Group"].unique())
 )
+
 # Hours range slider
 hours_range = st.sidebar.slider(
     "Select Listening Hours Range",
-    float(df["Hours_per_day"].min()),
-    float(df["Hours_per_day"].max()),
-    (float(df["Hours_per_day"].min()), float(df["Hours_per_day"].max()))
+    float(df["Hours per day"].min()),
+    float(df["Hours per day"].max()),
+    (float(df["Hours per day"].min()), float(df["Hours per day"].max()))
 )
 
 # Genre multiselect
 genres = st.sidebar.multiselect(
-    "Select Genres",
-    options=df["Genre"].unique(),
-    default=list(df["Genre"].unique())
+    "Select Favorite Genres",
+    options=sorted(df["Fav genre"].dropna().unique()),
+    default=list(df["Fav genre"].dropna().unique())[:5]
 )
+
+# ---------------------------
 # Filter data
+# ---------------------------
 filtered = df[
     (df["Age_Group"] == age_group) &
-    (df["Hours_per_day"].between(hours_range[0], hours_range[1])) &
-    (df["Genre"].isin(genres))
+    (df["Hours per day"].between(hours_range[0], hours_range[1])) &
+    (df["Fav genre"].isin(genres))
 ].copy()
 
-# Bin hours for x-axis clarity
-filtered["Hours_bin"] = pd.cut(filtered["Hours_per_day"], bins=5, precision=0)
+# Bin hours for clarity
+filtered["Hours_bin"] = pd.cut(filtered["Hours per day"], bins=5, precision=0)
 filtered["Hours_bin"] = filtered["Hours_bin"].astype(str)
 
-# Group and average
+# Group by and compute mean
 grouped = (
-    filtered.groupby(["Genre", "Hours_bin"])["Mental_health_score"]
+    filtered.groupby(["Fav genre", "Hours_bin"])["Mental_Health_Score"]
     .mean()
     .reset_index()
 )
 
-
+# ---------------------------
 # Plot heatmap
+# ---------------------------
 if not grouped.empty:
     fig = px.density_heatmap(
         grouped,
         x="Hours_bin",
-        y="Genre",
-        z="Mental_health_score",
-        color_continuous_scale="Viridis",
+        y="Fav genre",
+        z="Mental_Health_Score",
+        color_continuous_scale="RdYlBu_r",
         title=f"Average Mental Health by Genre and Listening Hours ({age_group})"
     )
-    fig.update_layout(height=600, xaxis_title="Listening Hours (binned)", yaxis_title="Genre")
+    fig.update_layout(height=600, xaxis_title="Listening Hours (binned)", yaxis_title="Favorite Genre")
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("No data available for the selected filters.")
 
-
+# ---------------------------
 # Research Question
-
+# ---------------------------
 st.markdown("---")
 st.subheader("🧠 Research Question")
 st.markdown("""
-**How does listening time and genre preference differ across age groups,  
-and how might these factors relate to mental health?**
+**How do different listening durations and favorite music genres relate to mental health across age groups?**
 """)
